@@ -6,6 +6,8 @@
   <title>India Data Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     :root { color-scheme: dark; --bg:#07111f; --panel:#0e1b2d; --line:#20334b; --text:#eef5ff; --muted:#91a4bc; --accent:#ff9d43; --green:#48d597; }
     * { box-sizing:border-box; }
@@ -26,6 +28,10 @@
     select,input { width:100%; border:1px solid var(--line); border-radius:10px; background:#091525; color:var(--text); padding:12px 13px; font:inherit; }
     h2 { font-size:17px; margin:0 0 10px; }
     #map,#bars { min-height:430px; }
+    #map { border-radius:12px; overflow:hidden; background:#0b1727; }
+    .leaflet-container { font-family:Inter,ui-sans-serif,system-ui,sans-serif; }
+    .leaflet-popup-content-wrapper,.leaflet-popup-tip { background:#0e1b2d; color:#eef5ff; }
+    .leaflet-control-attribution { background:rgba(255,255,255,.85) !important; }
     .table-wrap { overflow:auto; max-height:430px; }
     table { width:100%; border-collapse:collapse; font-size:13px; }
     th,td { padding:10px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap; }
@@ -64,6 +70,12 @@
     const fmt = new Intl.NumberFormat('en-IN');
     const layoutBase = {paper_bgcolor:'transparent',plot_bgcolor:'transparent',font:{color:'#dce8f7'},margin:{l:25,r:20,t:20,b:35}};
     let data=[];
+    const indiaMap=L.map('map',{zoomControl:true,minZoom:3,maxZoom:12}).setView([22.5,79],4);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      maxZoom:19,
+      attribution:'&copy; OpenStreetMap contributors'
+    }).addTo(indiaMap);
+    const districtLayer=L.layerGroup().addTo(indiaMap);
     Papa.parse('india.csv',{download:true,header:true,dynamicTyping:true,skipEmptyLines:true,complete:({data:rows})=>{
       data=rows.filter(r=>r.District&&Number.isFinite(r.Population));
       [...new Set(data.map(r=>r.State))].sort().forEach(s=>document.querySelector('#state').add(new Option(s,s)));
@@ -81,7 +93,20 @@
       document.querySelector('#population').textContent=fmt.format(sum('Population'));
       document.querySelector('#internet').textContent=fmt.format(sum('Households_with_Internet'));
       document.querySelector('#literacy').textContent=(rows.length?sum('literacy_rate')/rows.length:0).toFixed(1)+'%';
-      Plotly.react('map',[{type:'scattergeo',mode:'markers',lat:rows.map(r=>r.Latitude),lon:rows.map(r=>r.Longitude),text:rows.map(r=>`${r.District}, ${r.State}<br>Population: ${fmt.format(r.Population)}<br>Literacy: ${r.literacy_rate}%`),marker:{size:rows.map(r=>Math.max(5,Math.sqrt(r.Population)/180)),color:rows.map(r=>r.literacy_rate),colorscale:'YlOrRd',showscale:true,colorbar:{title:'Literacy %'},line:{width:.4,color:'#fff'}}}],{...layoutBase,geo:{scope:'asia',projection:{type:'mercator'},center:{lat:22.5,lon:79},lataxis:{range:[6,38]},lonaxis:{range:[67,98]},showland:true,landcolor:'#15263a',showcountries:true,countrycolor:'#60758f',bgcolor:'transparent'}},{responsive:true,displaylogo:false});
+      districtLayer.clearLayers();
+      const bounds=[];
+      rows.forEach(r=>{
+        if(!Number.isFinite(r.Latitude)||!Number.isFinite(r.Longitude)) return;
+        const literacy=Math.max(0,Math.min(100,Number(r.literacy_rate)||0));
+        const hue=Math.round(45-literacy*.35);
+        L.circleMarker([r.Latitude,r.Longitude],{
+          radius:Math.max(4,Math.min(12,Math.sqrt(r.Population)/180)),
+          color:'#fff',weight:.65,fillColor:`hsl(${hue} 90% 56%)`,fillOpacity:.78
+        }).bindPopup(`<strong>${r.District}, ${r.State}</strong><br>Population: ${fmt.format(r.Population)}<br>Literacy: ${r.literacy_rate}%`).addTo(districtLayer);
+        bounds.push([r.Latitude,r.Longitude]);
+      });
+      if(bounds.length&&rows.length<data.length) indiaMap.fitBounds(bounds,{padding:[24,24],maxZoom:7});
+      else indiaMap.setView([22.5,79],4);
       const top=[...rows].sort((a,b)=>b.Population-a.Population).slice(0,10).reverse();
       Plotly.react('bars',[{type:'bar',orientation:'h',x:top.map(r=>r.Population),y:top.map(r=>r.District),marker:{color:'#ff9d43'},hovertemplate:'%{y}<br>%{x:,}<extra></extra>'}],{...layoutBase,xaxis:{gridcolor:'#20334b'},yaxis:{automargin:true},margin:{l:110,r:15,t:20,b:40}},{responsive:true,displaylogo:false});
       document.querySelector('#rows').innerHTML=rows.slice(0,100).map(r=>`<tr><td>${r.District}</td><td>${r.State}</td><td>${fmt.format(r.Population)}</td><td>${fmt.format(r.Households_with_Internet)}</td><td>${r.literacy_rate}%</td><td>${r.sex_ratio}</td></tr>`).join('')||'<tr><td colspan="6">No districts match.</td></tr>';
