@@ -70,7 +70,10 @@
     const fmt = new Intl.NumberFormat('en-IN');
     const layoutBase = {paper_bgcolor:'transparent',plot_bgcolor:'transparent',font:{color:'#dce8f7'},margin:{l:25,r:20,t:20,b:35}};
     let data=[];
-    const indiaMap=L.map('map',{zoomControl:true,minZoom:3,maxZoom:12}).setView([22.5,79],4);
+    const mapElement=document.querySelector('#map');
+    mapElement.classList.remove('status');
+    mapElement.textContent='';
+    const indiaMap=L.map(mapElement,{zoomControl:true,minZoom:3,maxZoom:12}).setView([22.5,79],4);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
       maxZoom:19,
       attribution:'&copy; OpenStreetMap contributors'
