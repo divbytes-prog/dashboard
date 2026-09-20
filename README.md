@@ -2,6 +2,10 @@
 
 An interactive Streamlit dashboard for exploring district-level Indian demographic and socioeconomic data.
 
+**Live dashboard:** [dashboard-liard-seven-19.vercel.app](https://dashboard-liard-seven-19.vercel.app/)
+
+The production deployment is a browser-native dashboard with an interactive Leaflet/OpenStreetMap district map, responsive Plotly charts, filters, KPI cards, and a searchable table. The original Streamlit implementation remains in `app.py` for local Python use.
+
 ## Features
 
 - State-level filtering with an overall India view
@@ -37,8 +41,10 @@ The dashboard expects `india.csv` in the repository root.
 
 ```text
 app.py            Streamlit application
+index.html        Vercel-ready browser dashboard
 india.csv         District-level dataset
 requirements.txt  Python dependencies
+vercel.json       Production hosting configuration
 ```
 
 ## What I explored
