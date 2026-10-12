@@ -28,6 +28,7 @@
     select,input { width:100%; border:1px solid var(--line); border-radius:10px; background:#091525; color:var(--text); padding:12px 13px; font:inherit; }
     h2 { font-size:17px; margin:0 0 10px; }
     #map,#bars { min-height:430px; }
+    .muted { color:var(--muted); font-size:13px; margin:0 0 12px; }
     #map { border-radius:12px; overflow:hidden; background:#0b1727; }
     .leaflet-container { font-family:Inter,ui-sans-serif,system-ui,sans-serif; }
     .leaflet-popup-content-wrapper,.leaflet-popup-tip { background:#0e1b2d; color:#eef5ff; }
@@ -62,7 +63,7 @@
     <section class="grid">
       <div class="panel"><h2>District map</h2><div id="map" class="status">Loading map…</div></div>
       <div class="panel"><h2>Top districts by population</h2><div id="bars" class="status">Loading chart…</div></div>
-      <div class="panel" style="grid-column:1/-1"><h2>District explorer</h2><div class="table-wrap"><table><thead><tr><th>District</th><th>State</th><th>Population</th><th>Internet households</th><th>Literacy</th><th>Sex ratio</th></tr></thead><tbody id="rows"></tbody></table></div></div>
+      <div class="panel" style="grid-column:1/-1"><h2>District explorer</h2><p id="table-summary" class="muted"></p><div class="table-wrap"><table><thead><tr><th>District</th><th>State</th><th>Population</th><th>Internet households</th><th>Literacy</th><th>Sex ratio</th></tr></thead><tbody id="rows"></tbody></table></div></div>
     </section>
   </main>
   <footer>Built by Divyansh Singh · Data loaded directly from the project repository</footer>
@@ -98,7 +99,7 @@
       document.querySelector('#districts').textContent=fmt.format(rows.length);
       document.querySelector('#population').textContent=fmt.format(sum('Population'));
       document.querySelector('#internet').textContent=fmt.format(sum('Households_with_Internet'));
-      document.querySelector('#literacy').textContent=(rows.length?sum('literacy_rate')/rows.length:0).toFixed(1)+'%';
+      document.querySelector('#literacy').textContent=rows.length?(sum('literacy_rate')/rows.length).toFixed(1)+'%':'—';
       districtLayer.clearLayers();
       const bounds=[];
       rows.forEach(r=>{
@@ -108,15 +109,25 @@
         L.circleMarker([r.Latitude,r.Longitude],{
           radius:Math.max(4,Math.min(12,Math.sqrt(r.Population)/180)),
           color:'#fff',weight:.65,fillColor:`hsl(${hue} 90% 56%)`,fillOpacity:.78
-        }).bindPopup(`<strong>${r.District}, ${r.State}</strong><br>Population: ${fmt.format(r.Population)}<br>Literacy: ${r.literacy_rate}%`).addTo(districtLayer);
+        }).bindPopup(`<strong>${escapeHtml(r.District)}, ${escapeHtml(r.State)}</strong><br>Population: ${fmt.format(r.Population)}<br>Literacy: ${r.literacy_rate}%`).addTo(districtLayer);
         bounds.push([r.Latitude,r.Longitude]);
       });
       if(bounds.length&&rows.length<data.length) indiaMap.fitBounds(bounds,{padding:[24,24],maxZoom:7});
       else indiaMap.setView([22.5,79],4);
       const top=[...rows].sort((a,b)=>b.Population-a.Population).slice(0,10).reverse();
-      Plotly.react('bars',[{type:'bar',orientation:'h',x:top.map(r=>r.Population),y:top.map(r=>r.District),marker:{color:'#ff9d43'},hovertemplate:'%{y}<br>%{x:,}<extra></extra>'}],{...layoutBase,xaxis:{gridcolor:'#20334b'},yaxis:{automargin:true},margin:{l:110,r:15,t:20,b:40}},{responsive:true,displaylogo:false});
-      document.querySelector('#rows').innerHTML=rows.slice(0,100).map(r=>`<tr><td>${r.District}</td><td>${r.State}</td><td>${fmt.format(r.Population)}</td><td>${fmt.format(r.Households_with_Internet)}</td><td>${r.literacy_rate}%</td><td>${r.sex_ratio}</td></tr>`).join('')||'<tr><td colspan="6">No districts match.</td></tr>';
+      if (!rows.length) {
+        Plotly.purge('bars');
+        barsElement.textContent='No districts match this search.';
+        barsElement.classList.add('status');
+      } else {
+        barsElement.classList.remove('status');
+        barsElement.textContent='';
+        Plotly.react('bars',[{type:'bar',orientation:'h',x:top.map(r=>r.Population),y:top.map(r=>r.District),marker:{color:'#ff9d43'},hovertemplate:'%{y}<br>%{x:,}<extra></extra>'}],{...layoutBase,xaxis:{gridcolor:'#20334b'},yaxis:{automargin:true},margin:{l:110,r:15,t:20,b:40}},{responsive:true,displaylogo:false});
+      }
+      document.querySelector('#table-summary').textContent=`Showing ${fmt.format(rows.length)} matching district records`;
+      document.querySelector('#rows').innerHTML=rows.map(r=>`<tr><td>${escapeHtml(r.District)}</td><td>${escapeHtml(r.State)}</td><td>${fmt.format(r.Population)}</td><td>${fmt.format(r.Households_with_Internet)}</td><td>${r.literacy_rate}%</td><td>${r.sex_ratio}</td></tr>`).join('')||'<tr><td colspan="6">No districts match.</td></tr>';
     }
+    function escapeHtml(value){return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
     document.querySelector('#state').addEventListener('change',render);
     document.querySelector('#search').addEventListener('input',render);
   </script>
