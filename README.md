@@ -54,3 +54,4 @@ This project focuses on turning a multidimensional dataset into an interactive i
 ---
 
 Built by [Divyansh Singh](https://github.com/divbytes-prog).
+\n## Data limitations\n\nThe included CSV is a fixed historical district dataset with no documented\nsource year or original provenance in this repository. Some district names and\nstate labels reflect older boundaries, and there are repeated district names\nacross states plus a small number of conflicting state/district combinations.\nThe website displays records as supplied; do not interpret its aggregate\nfigures as a current census estimate. The literacy KPI is an unweighted mean\nof the matched district records, not a population-weighted national rate.\nThe deployed chart clears its loading placeholder, supports empty searches,\nand lists all matching records in the explorer.\n
