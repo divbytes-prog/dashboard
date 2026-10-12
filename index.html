@@ -62,7 +62,7 @@
     </section>
     <section class="grid">
       <div class="panel"><h2>District map</h2><div id="map" class="status">Loading map…</div></div>
-      <div class="panel"><h2>Top districts by population</h2><div id="bars" class="status">Loading chart…</div></div>
+      <div class="panel"><h2 id="bars-title">Top districts by population</h2><div id="bars" class="status">Loading chart…</div></div>
       <div class="panel" style="grid-column:1/-1"><h2>District explorer</h2><p id="table-summary" class="muted"></p><div class="table-wrap"><table><thead><tr><th>District</th><th>State</th><th>Population</th><th>Internet households</th><th>Literacy</th><th>Sex ratio</th></tr></thead><tbody id="rows"></tbody></table></div></div>
     </section>
   </main>
@@ -89,10 +89,13 @@
       [...new Set(data.map(r=>r.State))].sort().forEach(s=>document.querySelector('#state').add(new Option(s,s)));
       render();
     },error:()=>document.querySelector('main').innerHTML='<div class="panel status">The dataset could not be loaded.</div>'});
-    function current(){
+    function stateRows(){
       const state=document.querySelector('#state').value;
+      return data.filter(r=>state==='Overall India'||r.State===state);
+    }
+    function current(){
       const q=document.querySelector('#search').value.trim().toLowerCase();
-      return data.filter(r=>(state==='Overall India'||r.State===state)&&(!q||r.District.toLowerCase().includes(q)));
+      return stateRows().filter(r=>!q||r.District.toLowerCase().includes(q));
     }
     function render(){
       const rows=current();
@@ -115,7 +118,15 @@
       });
       if(bounds.length&&rows.length<data.length) indiaMap.fitBounds(bounds,{padding:[24,24],maxZoom:7});
       else indiaMap.setView([22.5,79],4);
-      const top=[...rows].sort((a,b)=>b.Population-a.Population).slice(0,10).reverse();
+      const query=document.querySelector('#search').value.trim();
+      const selected=rows.length===1&&query?rows[0]:null;
+      const peers=selected&&document.querySelector('#state').value==='Overall India'
+        ?data.filter(r=>r.State===selected.State):stateRows();
+      const top=selected
+        ?[selected,...peers.filter(r=>r!==selected).sort((a,b)=>b.Population-a.Population).slice(0,9)].sort((a,b)=>a.Population-b.Population)
+        :[...rows].sort((a,b)=>b.Population-a.Population).slice(0,10).reverse();
+      document.querySelector('#bars-title').textContent=selected
+        ?`${selected.District} compared with ${selected.State} districts`:'Top districts by population';
       if (!rows.length) {
         Plotly.purge('bars');
         chartReady=false;
@@ -125,7 +136,7 @@
         barsElement.classList.remove('status');
         if(!chartReady) barsElement.textContent='';
         const draw=chartReady?Plotly.react:Plotly.newPlot;
-        draw('bars',[{type:'bar',orientation:'h',x:top.map(r=>r.Population),y:top.map(r=>r.District),marker:{color:'#ff9d43'},hovertemplate:'%{y}<br>%{x:,}<extra></extra>'}],{...layoutBase,xaxis:{gridcolor:'#20334b'},yaxis:{automargin:true},margin:{l:110,r:15,t:20,b:40}},{responsive:true,displaylogo:false});
+        draw('bars',[{type:'bar',orientation:'h',x:top.map(r=>r.Population),y:top.map(r=>r.District),marker:{color:top.map(r=>r===selected?'#ff9d43':'#3b82b5')},hovertemplate:'%{y}<br>%{x:,}<extra></extra>'}],{...layoutBase,xaxis:{gridcolor:'#20334b'},yaxis:{automargin:true},margin:{l:110,r:15,t:20,b:40}},{responsive:true,displaylogo:false});
         chartReady=true;
       }
       document.querySelector('#table-summary').textContent=`Showing ${fmt.format(rows.length)} matching district records`;
