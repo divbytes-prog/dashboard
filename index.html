@@ -73,6 +73,7 @@
     const barsElement=document.querySelector('#bars');
     barsElement.classList.remove('status');
     barsElement.textContent='';
+    let chartReady=false;
     let data=[];
     const mapElement=document.querySelector('#map');
     mapElement.classList.remove('status');
@@ -117,12 +118,15 @@
       const top=[...rows].sort((a,b)=>b.Population-a.Population).slice(0,10).reverse();
       if (!rows.length) {
         Plotly.purge('bars');
+        chartReady=false;
         barsElement.textContent='No districts match this search.';
         barsElement.classList.add('status');
       } else {
         barsElement.classList.remove('status');
-        barsElement.textContent='';
-        Plotly.react('bars',[{type:'bar',orientation:'h',x:top.map(r=>r.Population),y:top.map(r=>r.District),marker:{color:'#ff9d43'},hovertemplate:'%{y}<br>%{x:,}<extra></extra>'}],{...layoutBase,xaxis:{gridcolor:'#20334b'},yaxis:{automargin:true},margin:{l:110,r:15,t:20,b:40}},{responsive:true,displaylogo:false});
+        if(!chartReady) barsElement.textContent='';
+        const draw=chartReady?Plotly.react:Plotly.newPlot;
+        draw('bars',[{type:'bar',orientation:'h',x:top.map(r=>r.Population),y:top.map(r=>r.District),marker:{color:'#ff9d43'},hovertemplate:'%{y}<br>%{x:,}<extra></extra>'}],{...layoutBase,xaxis:{gridcolor:'#20334b'},yaxis:{automargin:true},margin:{l:110,r:15,t:20,b:40}},{responsive:true,displaylogo:false});
+        chartReady=true;
       }
       document.querySelector('#table-summary').textContent=`Showing ${fmt.format(rows.length)} matching district records`;
       document.querySelector('#rows').innerHTML=rows.map(r=>`<tr><td>${escapeHtml(r.District)}</td><td>${escapeHtml(r.State)}</td><td>${fmt.format(r.Population)}</td><td>${fmt.format(r.Households_with_Internet)}</td><td>${r.literacy_rate}%</td><td>${r.sex_ratio}</td></tr>`).join('')||'<tr><td colspan="6">No districts match.</td></tr>';
